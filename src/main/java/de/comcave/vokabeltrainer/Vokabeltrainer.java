@@ -3,21 +3,21 @@ package de.comcave.vokabeltrainer;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
 @Slf4j
-public class Vokabeltrainer {
+public class Vokabeltrainer extends Methods {
+
     private final Map<String, Vokabel> vokabeln;
-    private final String benutzerName = ermittleBenutzerName();
-    private int richtigBeantwortet;
-    private int falschBeantwortet;
+    private final File benutzerDatei;
+    private int richtigBeantwortet, falschBeantwortet;
 
     public Vokabeltrainer(String vokabelDatei) {
         vokabeln = new HashMap<>();
+        benutzerDatei = erstelleDatei(ermittleBenutzer() + ".properties");
+
         ladeVokabeln(vokabelDatei);
     }
 
@@ -37,93 +37,38 @@ public class Vokabeltrainer {
 
     public void startTraining() {
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-        boolean shouldStop = false;
 
         for (Vokabel vokabel : vokabeln.values()) {
             try {
+                int richtigSpeichern = 0;
+                int falschSpeichern = 0;
+
                 System.out.println("Übersetze: " + vokabel.getDeutsch());
                 String antwort = reader.readLine();
 
-                if ("!stop".equalsIgnoreCase(antwort)) {
-                    shouldStop = true;
-                    break;
+                if ("!stop".equalsIgnoreCase(antwort) || "!ende".equalsIgnoreCase(antwort)) {
+                    zeigeMeineStats(benutzerDatei, richtigBeantwortet, falschBeantwortet);
+                    System.out.println("Die Übungen wurden beendet. Danke fürs Nutzen");
+                    System.exit(0);
                 }
 
                 if (antwort.equalsIgnoreCase("!stats")) {
-                    zeigeMeineStats();
-                } else if (antwort.equalsIgnoreCase(vokabel.getEnglisch())) {
-                    System.out.println("\tRichtig!\n\n");
-                    richtigBeantwortet++;
+                    zeigeMeineStats(benutzerDatei, richtigBeantwortet, falschBeantwortet);
                 } else {
-                    System.out.println("\tFalsch. Die richtige Antwort ist: " + vokabel.getEnglisch() + "\n\n");
-                    falschBeantwortet++;
+                    if (antwort.equalsIgnoreCase(vokabel.getEnglisch())) {
+                        System.out.println("\tRichtig!\n\n");
+                        richtigBeantwortet++;
+                        richtigSpeichern++;
+                    } else {
+                        System.out.println("\tFalsch. Die richtige Antwort ist: " + vokabel.getEnglisch() + "\n\n");
+                        falschBeantwortet++;
+                        falschSpeichern++;
+                    }
+                    speichereMeineStats(benutzerDatei, richtigSpeichern, falschSpeichern);
                 }
-                speichereStats();
             } catch (IOException e) {
                 log.error("Fehler beim Lesen der Eingabe", e);
             }
-        }
-
-        if (shouldStop) {
-            zeigeMeineStats();
-            System.exit(0);
-        }
-    }
-
-    public void zeigeMeineStats() {
-        int AlleRichtigBeantwortet = 0;
-        int AlleFalschBeantwortet = 0;
-
-        try (InputStream input = new FileInputStream(benutzerName + ".properties")) {
-            Properties properties = new Properties();
-            properties.load(input);
-
-            AlleRichtigBeantwortet = Integer.parseInt(properties.getProperty("richtigBeantwortet", "0"));
-            AlleFalschBeantwortet = Integer.parseInt(properties.getProperty("falschBeantwortet", "0"));
-
-        } catch (IOException e) {
-            log.error("Fehler beim Laden der Datei, keine Sorge", e);
-        }
-
-        System.out.println("\n\n\n\n\naktuelle Statistik:");
-        System.out.println("\tRichtig beantwortet: " + richtigBeantwortet);
-        System.out.println("\tFalsch beantwortet: " + falschBeantwortet);
-        System.out.println("\n\ngesamte Statistik:");
-        System.out.println("\tRichtig beantwortet: " + AlleRichtigBeantwortet);
-        System.out.println("\tFalsch beantwortet: " + AlleFalschBeantwortet);
-        System.out.println("\n\n\n\n\n");
-    }
-
-    private void speichereStats() {
-        try (InputStream input = new FileInputStream(benutzerName + ".properties")) {
-            Properties properties = new Properties();
-            properties.load(input);
-
-            int vorhandenRichtig = Integer.parseInt(properties.getProperty("richtigBeantwortet", "0"));
-            int vorhandenFalsch = Integer.parseInt(properties.getProperty("falschBeantwortet", "0"));
-
-            vorhandenRichtig += richtigBeantwortet;
-            vorhandenFalsch += falschBeantwortet;
-
-            properties.setProperty("richtigBeantwortet", String.valueOf(vorhandenRichtig));
-            properties.setProperty("falschBeantwortet", String.valueOf(vorhandenFalsch));
-
-            try (OutputStream output = new FileOutputStream(benutzerName + ".properties")) {
-                properties.store(output, null);
-            }
-
-        } catch (IOException e) {
-            log.error("Fehler beim Speichern der Datei", e);
-        }
-    }
-
-    public String ermittleBenutzerName() {
-        try {
-            return InetAddress.getLocalHost().getHostName().toLowerCase();
-        } catch (UnknownHostException e) {
-            log.error("Fehler beim Ermitteln des Computernamens", e);
-
-            return "UnbekannterBenutzer";
         }
     }
 }
