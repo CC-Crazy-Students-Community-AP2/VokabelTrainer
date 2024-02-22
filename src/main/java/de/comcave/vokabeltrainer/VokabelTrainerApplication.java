@@ -1,13 +1,14 @@
 package de.comcave.vokabeltrainer;
 
-import org.springframework.boot.SpringApplication;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
+@Slf4j
 @SpringBootApplication
 public class VokabelTrainerApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(VokabelTrainerApplication.class, args);
+        Vokabeltrainer vokabeltrainer = new Vokabeltrainer("vokabeln_en.properties");
+        vokabeltrainer.startTraining();
     }
-
 }
